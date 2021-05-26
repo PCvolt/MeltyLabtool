@@ -21,8 +21,10 @@ void MemoryMain()
 
 	while (true)
 	{
-		chr2->health = 50;
-		printf("%d \n", chr2->health);
+		if (chr2->wakeupFlag)
+		if (chr2->inputEvent != -1)
+			printf("%d \n", chr2->inputEvent);
+
 		if (GetAsyncKeyState(VK_ESCAPE) & 1)
 		{
 			break;
