@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <vector>
 
 void WriteToMemory(DWORD addressToWrite, char* valueToWrite, int byteNum);
-void ReadFromMemory(DWORD addressToRead, float value);
+void MemoryMain();
