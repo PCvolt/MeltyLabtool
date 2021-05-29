@@ -5,6 +5,17 @@
 #include <iostream>
 #include <optional>
 
+struct BlockingState
+{
+	int lastFrame;
+	Action lastAction;
+	unsigned hitTimer = 0;
+	unsigned timer = 0;
+	int gapCounter = -1;
+	bool wasBlocking = false;
+	bool wasAttacking = false;
+	bool started = false;
+};
 
 
 void ReversalWakeup(MeltyLib::CharacterObject &chr, short attackId)
@@ -102,17 +113,6 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int *rmb)
 	*rmb = chr->inputEvent;
 }
 
-struct BlockingState
-{
-	int lastFrame;
-	Action lastAction;
-	unsigned hitTimer = 0;
-	unsigned timer = 0;
-	int gapCounter = -1;
-	bool wasBlocking = false;
-	bool wasAttacking = false;
-	bool started = false;
-};
 
 static BlockingState p1BS;
 static BlockingState p2BS;
@@ -139,6 +139,8 @@ void MemoryMain()
 			printf("%d \n", frameAdvantage2);
 		}
 		//DisplaySpecialInput(chr1, &rmb);
+
+		int addr_update = MeltyLib::ADDR_UPDATE_GAME;
 
 		if (GetAsyncKeyState(VK_ESCAPE) & 1)
 		{
