@@ -3,21 +3,8 @@
 #include <cstdio>
 #include <iostream>
 #include <Psapi.h>
+#include <MeltyLib.h>
 #include "Memory.h"
-
-DWORD WINAPI HookThread(HMODULE hModule)
-{
-	AllocConsole();
-	FILE *f = new FILE;
-	freopen_s(&f, "CONOUT$", "w", stdout);
-
-	MemoryMain();
-
-	fclose(f);
-	FreeConsole();
-	FreeLibraryAndExitThread(hModule, 0);
-	return 0;
-}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
