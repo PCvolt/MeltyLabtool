@@ -13,11 +13,12 @@ struct BlockingState
 	Action lastAction;
 	int hitTimer = 0;
 	int timer = 0;
-	int gapCounter = -1;
-	bool wasIdling = false;
-	bool wasBlocking = false;
-	bool wasAttacking = false;
+	int gapCounter = 0;
+	bool isIdling = false;
+	bool isBlocking = false;
+	bool isAttacking = false;
 	bool started = false;
+	bool willReversal = false;
 };
 
 
@@ -33,12 +34,16 @@ void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 	}
 }
 
-void ReversalOnBlock(MeltyLib::CharacterObject& chr, short attackId)
+void ReversalOnBlock(MeltyLib::CharacterObject& chr, BlockingState& state, short attackId)
 {
-	//remember
-	if (chr.hitstunOnGround == 0 /*&& u_hitstunFlags2 == 0 0x1B0*/) //doesn't differentiate on block and on hit
+	if (!state.isBlocking && state.willReversal)
 	{
 		chr.inputEvent = attackId;
+		state.willReversal = false;
+	}
+	if (state.isBlocking)
+	{
+		state.willReversal = true;
 	}
 }
 
@@ -53,14 +58,21 @@ static bool IsAttacking(const MeltyLib::CharacterObject& chr)
 
 static bool IsBlocking(const MeltyLib::CharacterObject& chr)
 {
-	if (chr.hitstunOnGround > 0)
-		return true;
-	/*
-	if (chr.action == Action::ACTION_STANDBLOCK ||
+	if (chr.hitstunOnGround > 0 && (chr.action == Action::ACTION_STANDBLOCK ||
 		chr.action == Action::ACTION_CROUCHBLOCK ||
-		chr.action == Action::ACTION_AIRBLOCK)
+		chr.action == Action::ACTION_AIRBLOCK))
 		return true;
-	*/
+
+	return false;
+}
+
+static bool IsHit(const MeltyLib::CharacterObject& chr)
+{
+	if (chr.hitstunOnGround > 0 && !(chr.action == Action::ACTION_STANDBLOCK ||
+		chr.action == Action::ACTION_CROUCHBLOCK ||
+		chr.action == Action::ACTION_AIRBLOCK))
+		return true;
+
 	return false;
 }
 
@@ -102,9 +114,9 @@ std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, cons
 			--state.timer;
 		}
 	}
-	state.wasAttacking = attacking;
-	state.wasBlocking = blocking;
-	state.wasIdling = idling;
+	state.isAttacking = attacking;
+	state.isBlocking = blocking;
+	state.isIdling = idling;
 
 	return frameAdvantage;
 }
@@ -114,17 +126,17 @@ std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib:
 {
 	std::optional<int> gap;
 
-	if (state.wasBlocking)
+	if (state.isBlocking)
 	{
-		if (state.gapCounter >= 0 && state.gapCounter <= 30)
+		if (state.gapCounter > 0 && state.gapCounter <= 30)
 			gap = state.gapCounter;
-		state.gapCounter = -1;
+		state.gapCounter = 0;
 	}
-	if (!state.wasBlocking)
+	if (!state.isBlocking)
 		state.gapCounter++;
 	return gap;
 }
-//hitstun and blockstun are the same
+
 void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 {
 	if (chr->inputEvent > 15 && *rmb != chr->inputEvent)
@@ -144,14 +156,19 @@ void LabtoolMain(int arg)
 	auto frameAdvantage2 = GetFrameAdvantage(chr2, chr1, p2BS);
 
 	auto gap1 = GetGap(chr1, chr2, p1BS);
-	//ReversalWakeup(chr2, 2);
+	auto gap2 = GetGap(chr2, chr1, p2BS);
+	//ReversalOnBlock(chr2, p1BS, 3); // Why does it work the other way around?
 
-	/*
+
 	if (gap1) // Looks okay ?
 	{
-		printf("Gap: %d \n", gap1);
+		printf("P1 Gap: %d \n", gap1);
 	}
-	*/
+	else if (gap2)
+	{
+		printf("P2 Gap: %d \n", gap2);
+	}
+
 	if (frameAdvantage1)
 	{
 		printf("P1 is %dF \n", frameAdvantage1);
@@ -162,12 +179,13 @@ void LabtoolMain(int arg)
 	}
 
 	//DisplaySpecialInput(chr1, &rmb);
+	/*
 	if (GetAsyncKeyState(VK_ESCAPE) & 1)
 	{
 		fclose(f);
 		FreeConsole();
 	}
-
+	*/
 	oldUpdate(arg);
 }
 
