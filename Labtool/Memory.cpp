@@ -58,9 +58,7 @@ static bool IsAttacking(const MeltyLib::CharacterObject& chr)
 
 static bool IsBlocking(const MeltyLib::CharacterObject& chr)
 {
-	if (chr.hitstunOnGround > 0 && (chr.action == Action::ACTION_STANDBLOCK ||
-		chr.action == Action::ACTION_CROUCHBLOCK ||
-		chr.action == Action::ACTION_AIRBLOCK))
+	if (chr.hitstunOnGround > 0)
 		return true;
 
 	return false;
@@ -212,6 +210,5 @@ DWORD WINAPI HookThread(HMODULE hModule)
 
 	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)LabtoolMain);
 
-	//FreeLibraryAndExitThread(hModule, 0);
 	return 0;
 }

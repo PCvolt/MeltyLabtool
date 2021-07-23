@@ -2,10 +2,9 @@
 // Created by PC_volt on 15/05/2021.
 //
 
-#include <Windows.h>
-#include <iostream>
-#include <TlHelp32.h>
 #include <string>
+#include <Windows.h>
+#include <TlHelp32.h>
 
 DWORD FindProcessId(LPCSTR processName)
 {
@@ -60,5 +59,14 @@ bool InjectDLL(DWORD processId, char* dllPath)
 
 int main()
 {
-	InjectDLL(FindProcessId((LPCSTR)"MBAA.exe"), (char*)"C:\\Users\\PC_volt\\source\\repos\\MeltyLabtool\\Debug\\Labtool.dll");
+	WCHAR path[MAX_PATH];
+	GetModuleFileNameW(NULL, path, MAX_PATH);
+
+	std::wstring wStr(path);
+	std::string str = std::string(wStr.begin(), wStr.end());
+
+	str = str.substr(0, str.find_last_of("\\/"));
+	std::string dllPath = str + "\\Labtool.dll";
+
+	InjectDLL(FindProcessId((LPCSTR)"MBAA.exe"), (char*)dllPath.c_str());
 }
