@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <typeinfo>
 #include <MeltyLib.h>
 #include "Memory.h"
@@ -76,11 +76,19 @@ static bool IsHit(const MeltyLib::CharacterObject& chr)
 
 static bool IsIdle(const MeltyLib::CharacterObject& chr)
 {
-	if (chr.action == Action::ACTION_IDLE ||
-		(chr.action >= Action::ACTION_WALK && chr.action <= Action::ACTION_TURNAROUND) ||
-		chr.action == Action::ACTION_LANDING ||
-		(chr.action >= Action::ACTION_j9 && chr.action > Action::ACTION_dj7))
-		return true;
+	//S'il n'est pas en train de bloquer mais pas forcément avec du hitstun
+	if (!IsBlocking(chr))
+	{
+		if ((chr.action == Action::ACTION_IDLE ||
+			(chr.action >= Action::ACTION_WALK && chr.action <= Action::ACTION_TURNAROUND) ||
+			chr.action == Action::ACTION_LANDING ||
+			(chr.action >= Action::ACTION_j9 && chr.action <= Action::ACTION_dj7))
+			|| chr.action == Action::ACTION_STANDBLOCK
+			|| chr.action == Action::ACTION_CROUCHBLOCK
+			|| chr.action == Action::ACTION_AIRBLOCK)
+			return true;
+
+	}
 	return false;
 }
 
@@ -88,37 +96,38 @@ std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, cons
 {
 	bool attacking = IsAttacking(chr1);
 	bool blocking = IsBlocking(chr2);
-	bool idling = IsIdle(chr2);
+	bool idling1 = IsIdle(chr1);
+	bool idling2 = IsIdle(chr2);
 	std::optional<int> frameAdvantage;
 
-	if (blocking && attacking && !state.started)
+	if (!idling1 && !idling2 && !state.started)
 	{
 		state.started = true;
 		state.timer = 0;
 	}
+
 	if (state.started)
 	{
-		if (!attacking && !blocking)
+		if (idling1 && idling2)
 		{
 			state.started = false;
 			frameAdvantage = state.timer;
 		}
-		else if (!attacking && blocking)
-		{
-			++state.timer;
-		}
-		else if (attacking && !blocking)
+		if (!idling1)
 		{
 			--state.timer;
+		}
+		if (!idling2)
+		{
+			++state.timer;
 		}
 	}
 	state.isAttacking = attacking;
 	state.isBlocking = blocking;
-	state.isIdling = idling;
 
 	return frameAdvantage;
 }
-//lol it glitches in pause since it's not synced to the round timer function
+// it glitches in pause since it's not synced to the round timer function
 
 std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, BlockingState& state)
 {
