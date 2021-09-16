@@ -7,6 +7,14 @@
 
 FILE* f = new FILE;
 
+struct GameState
+{
+	bool frozen = false;
+	bool framestep = false;
+};
+
+static GameState GS;
+
 struct BlockingState
 {
 	int lastFrame;
@@ -56,7 +64,7 @@ static bool IsAttacking(const MeltyLib::CharacterObject& chr)
 	return false;
 }
 
-static bool IsBlocking(const MeltyLib::CharacterObject& chr)
+static bool IsStunned(const MeltyLib::CharacterObject& chr)
 {
 	if (chr.hitstunOnGround > 0)
 		return true;
@@ -66,26 +74,41 @@ static bool IsBlocking(const MeltyLib::CharacterObject& chr)
 
 static bool IsHit(const MeltyLib::CharacterObject& chr)
 {
-	if (chr.hitstunOnGround > 0 && !(chr.action == Action::ACTION_STANDBLOCK ||
-		chr.action == Action::ACTION_CROUCHBLOCK ||
-		chr.action == Action::ACTION_AIRBLOCK))
-		return true;
+	if (IsStunned(chr))
+	{
+		if (!(chr.action == Action::ACTION_STANDBLOCK ||
+			chr.action == Action::ACTION_CROUCHBLOCK ||
+			chr.action == Action::ACTION_AIRBLOCK))
+			return true;
+	}
+
+	return false;
+}
+
+static bool IsBlocking(const MeltyLib::CharacterObject& chr)
+{
+	if (IsStunned(chr))
+	{
+		if (chr.action == Action::ACTION_STANDBLOCK ||
+			chr.action == Action::ACTION_CROUCHBLOCK ||
+			chr.action == Action::ACTION_AIRBLOCK)
+			return true;
+	}
 
 	return false;
 }
 
 static bool IsIdle(const MeltyLib::CharacterObject& chr)
 {
-	//S'il n'est pas en train de bloquer mais pas forcément avec du hitstun
-	if (!IsBlocking(chr))
+	if (!IsStunned(chr))
 	{
-		if ((chr.action == Action::ACTION_IDLE ||
+		if (((chr.action == Action::ACTION_IDLE ||
 			(chr.action >= Action::ACTION_WALK && chr.action <= Action::ACTION_TURNAROUND) ||
 			chr.action == Action::ACTION_LANDING ||
 			(chr.action >= Action::ACTION_j9 && chr.action <= Action::ACTION_dj7))
 			|| chr.action == Action::ACTION_STANDBLOCK
 			|| chr.action == Action::ACTION_CROUCHBLOCK
-			|| chr.action == Action::ACTION_AIRBLOCK)
+			|| chr.action == Action::ACTION_AIRBLOCK))
 			return true;
 
 	}
@@ -95,7 +118,7 @@ static bool IsIdle(const MeltyLib::CharacterObject& chr)
 std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, BlockingState& state)
 {
 	bool attacking = IsAttacking(chr1);
-	bool blocking = IsBlocking(chr2);
+	bool blocking = IsStunned(chr2);
 	bool idling1 = IsIdle(chr1);
 	bool idling2 = IsIdle(chr2);
 	std::optional<int> frameAdvantage;
@@ -127,7 +150,7 @@ std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, cons
 
 	return frameAdvantage;
 }
-// it glitches in pause since it's not synced to the round timer function
+// Find call of function that is updated only if the game is not paused
 
 std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, BlockingState& state)
 {
@@ -153,9 +176,10 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 	*rmb = chr->inputEvent;
 }
 
+auto oldUpdate = (int(*)(int))NULL;
+auto oldBattleSceneUpdate = (void(__fastcall*)(int*))NULL;
 
-int (*oldUpdate)(int) = NULL;
-void LabtoolMain(int arg)
+void NewUpdate(int arg)
 {
 	static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
 	static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
@@ -165,8 +189,11 @@ void LabtoolMain(int arg)
 	auto gap1 = GetGap(chr1, chr2, p1BS);
 	auto gap2 = GetGap(chr2, chr1, p2BS);
 	//ReversalOnBlock(chr2, p1BS, 3); // Why does it work the other way around?
-
-
+	
+	int remember;
+	//DisplaySpecialInput(&chr1, &remember);
+	ReversalWakeup(chr2, 56);
+	
 	if (gap1) // Looks okay ?
 	{
 		printf("P1 Gap: %d \n", gap1);
@@ -176,6 +203,7 @@ void LabtoolMain(int arg)
 		printf("P2 Gap: %d \n", gap2);
 	}
 
+	/*
 	if (frameAdvantage1)
 	{
 		printf("P1 is %dF \n", frameAdvantage1);
@@ -184,16 +212,40 @@ void LabtoolMain(int arg)
 	{
 		printf("P2 is %dF \n", frameAdvantage2);
 	}
-
-	//DisplaySpecialInput(chr1, &rmb);
-	/*
-	if (GetAsyncKeyState(VK_ESCAPE) & 1)
-	{
-		fclose(f);
-		FreeConsole();
-	}
 	*/
+	//DisplaySpecialInput(chr1, &rmb);
+	
 	oldUpdate(arg);
+}
+
+void __fastcall NewBattleSceneUpdate(int *arg)
+{
+	if (GetAsyncKeyState(VK_F1) & 1)
+	{
+		GS.frozen = !GS.frozen;
+		printf("%d\n", GS.frozen);
+	}
+
+	if (!GS.frozen)
+	{
+		oldBattleSceneUpdate(arg);
+	}
+}
+
+auto oldFunc = (void (__fastcall*)(int))NULL;
+void __fastcall NewFunc(int arg)
+{
+	if (GetAsyncKeyState(VK_F1) & 1)
+	{
+		GS.frozen = !GS.frozen;
+		printf("%d\n", GS.frozen);
+	}
+
+	//MeltyLib::ADDR_REAL_TIMER
+	if (!GS.frozen)
+	{
+		oldFunc(arg);
+	}
 }
 
 inline DWORD HookFunction(DWORD addr, DWORD target)
@@ -217,7 +269,10 @@ DWORD WINAPI HookThread(HMODULE hModule)
 	AllocConsole();
 	freopen_s(&f, "CONOUT$", "w", stdout);
 
-	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)LabtoolMain);
+	//oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)NewUpdate);
+	//oldBattleSceneUpdate = (void(__fastcall*)(int*)) HookFunction(0x4514f0, (DWORD)NewBattleSceneUpdate); //ADDR_CALL_UPDATEGAME_BATTLEMODE
+	
+	oldFunc = (void (__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewFunc);
 
 	return 0;
 }
