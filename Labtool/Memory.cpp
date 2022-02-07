@@ -11,6 +11,7 @@ struct GameState
 {
 	bool frozen = false;
 	bool framestep = false;
+	int realTimer = 0;
 };
 
 static GameState GS;
@@ -176,8 +177,19 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 	*rmb = chr->inputEvent;
 }
 
+
+
+
 auto oldUpdate = (int(*)(int))NULL;
-auto oldBattleSceneUpdate = (void(__fastcall*)(int*))NULL;
+auto oldReset = (void(*)(void))NULL;
+//auto oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char))NULL;
+auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
+auto oldFct = (void(__fastcall*)(int*))NULL;
+
+void NewReset()
+{
+	oldReset();
+}
 
 void NewUpdate(int arg)
 {
@@ -188,11 +200,11 @@ void NewUpdate(int arg)
 
 	auto gap1 = GetGap(chr1, chr2, p1BS);
 	auto gap2 = GetGap(chr2, chr1, p2BS);
-	//ReversalOnBlock(chr2, p1BS, 3); // Why does it work the other way around?
+	//ReversalOnBlock(chr2, p1BS, 36); // Why does it work the other way around?
 	
 	int remember;
 	//DisplaySpecialInput(&chr1, &remember);
-	ReversalWakeup(chr2, 56);
+	//ReversalWakeup(chr2, 56);
 	
 	if (gap1) // Looks okay ?
 	{
@@ -218,36 +230,56 @@ void NewUpdate(int arg)
 	oldUpdate(arg);
 }
 
-void __fastcall NewBattleSceneUpdate(int *arg)
+/*
+void __fastcall NewResetCharacter(MeltyLib::CharacterObject* arg1, int trash, byte arg2, int arg3, char arg4)
 {
-	if (GetAsyncKeyState(VK_F1) & 1)
+	oldResetCharacter(arg1, trash, arg2, arg3, arg4);
+}
+*/
+
+void __fastcall NewFct(int* arg)
+{
+	oldFct(arg);
+}
+
+void __fastcall NewBattleSceneUpdate(int arg)
+{
+	GS.framestep = false;
+	// FREEZE
+	if (GetAsyncKeyState(VK_F11) & 1)
 	{
 		GS.frozen = !GS.frozen;
-		printf("%d\n", GS.frozen);
 	}
 
-	if (!GS.frozen)
+	// FRAMESTEP or not frozen
+	if (GetAsyncKeyState(VK_F12) & 1)
+	{
+		GS.framestep = true;
+		//can't tell if I actually performed a framestep or not
+	}
+
+	if (GetAsyncKeyState(VK_F9) & 1)
+	{
+		//NewResetCharacter();
+		int* addr = reinterpret_cast <int*>(0x774974);
+		NewFct(addr);
+	}
+
+	if (GetAsyncKeyState(VK_F10) & 1)
+	{
+		NewReset();
+	}
+
+	if (!GS.frozen || GS.framestep == true)
 	{
 		oldBattleSceneUpdate(arg);
 	}
 }
 
-auto oldFunc = (void (__fastcall*)(int))NULL;
-void __fastcall NewFunc(int arg)
-{
-	if (GetAsyncKeyState(VK_F1) & 1)
-	{
-		GS.frozen = !GS.frozen;
-		printf("%d\n", GS.frozen);
-	}
 
-	//MeltyLib::ADDR_REAL_TIMER
-	if (!GS.frozen)
-	{
-		oldFunc(arg);
-	}
-}
 
+// Hooks the function in the stead of the original function.
+// We call the original function in the hooked function so to continue normal behaviour.
 inline DWORD HookFunction(DWORD addr, DWORD target)
 {
 	DWORD oldProtect;
@@ -264,15 +296,25 @@ inline DWORD HookFunction(DWORD addr, DWORD target)
 	return old;
 }
 
+inline DWORD HookAfterFunction(DWORD addr, DWORD target)
+{
+	DWORD oldProtect;
+
+}
+
 DWORD WINAPI HookThread(HMODULE hModule)
 {
 	AllocConsole();
 	freopen_s(&f, "CONOUT$", "w", stdout);
 
-	//oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)NewUpdate);
-	//oldBattleSceneUpdate = (void(__fastcall*)(int*)) HookFunction(0x4514f0, (DWORD)NewBattleSceneUpdate); //ADDR_CALL_UPDATEGAME_BATTLEMODE
+	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)NewUpdate);
+	oldBattleSceneUpdate = (void (__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
+	//oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunction(0x426838, (DWORD)NewResetCharacter);
 	
-	oldFunc = (void (__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewFunc);
+	oldFct = (void(__fastcall*)(int*)) HookFunction(0x0, (DWORD)NewFct);
+	oldReset = (void(*)(void)) HookFunction(0x423460, (DWORD)NewReset); //MeltyLib::BATTLESCENE_
 
+	//0x423460 MeltyLib::BATTLESCENE_INIT
+	//0x4265EC MeltyLib::BATTLESCENE_SUBMESSAGE_DISPLAY_RESET
 	return 0;
 }
