@@ -12,6 +12,10 @@ struct GameState
 	bool frozen = false;
 	bool framestep = false;
 	int realTimer = 0;
+
+	bool guardFrozen = false;
+	int guardGaugeQuality = 0;
+	bool exGuard = false;
 };
 
 static GameState GS;
@@ -37,9 +41,9 @@ static BlockingState p2BS;
 
 void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 {
-	if (chr.wakeupFlag == 1)
+	if (chr.CSO.wakeupFlag == 1)
 	{
-		chr.inputEvent = attackId;
+		chr.CSO.inputEvent = attackId;
 	}
 }
 
@@ -47,7 +51,7 @@ void ReversalOnBlock(MeltyLib::CharacterObject& chr, BlockingState& state, short
 {
 	if (!state.isBlocking && state.willReversal)
 	{
-		chr.inputEvent = attackId;
+		chr.CSO.inputEvent = attackId;
 		state.willReversal = false;
 	}
 	if (state.isBlocking)
@@ -59,7 +63,7 @@ void ReversalOnBlock(MeltyLib::CharacterObject& chr, BlockingState& state, short
 static bool IsAttacking(const MeltyLib::CharacterObject& chr)
 {
 	//get a convenient variable other than listing all the attacks
-	if ((chr.action >= Action::ACTION_5A && chr.action <= Action::ACTION_jC) || (chr.action >= Action::ACTION_AIRDASH && chr.action < Action::HITSTUN_LIGHT_LEANBACK))
+	if ((chr.CSO.action >= Action::ACTION_5A && chr.CSO.action <= Action::ACTION_jC) || (chr.CSO.action >= Action::ACTION_AIRDASH && chr.CSO.action < Action::HITSTUN_LIGHT_LEANBACK))
 		return true;
 
 	return false;
@@ -67,7 +71,7 @@ static bool IsAttacking(const MeltyLib::CharacterObject& chr)
 
 static bool IsStunned(const MeltyLib::CharacterObject& chr)
 {
-	if (chr.hitstunOnGround > 0)
+	if (chr.CSO.hitstunOnGround > 0)
 		return true;
 
 	return false;
@@ -77,9 +81,9 @@ static bool IsHit(const MeltyLib::CharacterObject& chr)
 {
 	if (IsStunned(chr))
 	{
-		if (!(chr.action == Action::ACTION_STANDBLOCK ||
-			chr.action == Action::ACTION_CROUCHBLOCK ||
-			chr.action == Action::ACTION_AIRBLOCK))
+		if (!(chr.CSO.action == Action::ACTION_STANDBLOCK ||
+			chr.CSO.action == Action::ACTION_CROUCHBLOCK ||
+			chr.CSO.action == Action::ACTION_AIRBLOCK))
 			return true;
 	}
 
@@ -90,9 +94,9 @@ static bool IsBlocking(const MeltyLib::CharacterObject& chr)
 {
 	if (IsStunned(chr))
 	{
-		if (chr.action == Action::ACTION_STANDBLOCK ||
-			chr.action == Action::ACTION_CROUCHBLOCK ||
-			chr.action == Action::ACTION_AIRBLOCK)
+		if (chr.CSO.action == Action::ACTION_STANDBLOCK ||
+			chr.CSO.action == Action::ACTION_CROUCHBLOCK ||
+			chr.CSO.action == Action::ACTION_AIRBLOCK)
 			return true;
 	}
 
@@ -103,13 +107,13 @@ static bool IsIdle(const MeltyLib::CharacterObject& chr)
 {
 	if (!IsStunned(chr))
 	{
-		if (((chr.action == Action::ACTION_IDLE ||
-			(chr.action >= Action::ACTION_WALK && chr.action <= Action::ACTION_TURNAROUND) ||
-			chr.action == Action::ACTION_LANDING ||
-			(chr.action >= Action::ACTION_j9 && chr.action <= Action::ACTION_dj7))
-			|| chr.action == Action::ACTION_STANDBLOCK
-			|| chr.action == Action::ACTION_CROUCHBLOCK
-			|| chr.action == Action::ACTION_AIRBLOCK))
+		if (((chr.CSO.action == Action::ACTION_IDLE ||
+			(chr.CSO.action >= Action::ACTION_WALK && chr.CSO.action <= Action::ACTION_TURNAROUND) ||
+			chr.CSO.action == Action::ACTION_LANDING ||
+			(chr.CSO.action >= Action::ACTION_j9 && chr.CSO.action <= Action::ACTION_dj7))
+			|| chr.CSO.action == Action::ACTION_STANDBLOCK
+			|| chr.CSO.action == Action::ACTION_CROUCHBLOCK
+			|| chr.CSO.action == Action::ACTION_AIRBLOCK))
 			return true;
 
 	}
@@ -170,42 +174,65 @@ std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib:
 
 void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 {
-	if (chr->inputEvent > 15 && *rmb != chr->inputEvent)
+	if (chr->CSO.inputEvent > 15 && *rmb != chr->CSO.inputEvent)
 	{
-		printf("%d \n", chr->inputEvent);
+		printf("%d \n", chr->CSO.inputEvent);
 	}
-	*rmb = chr->inputEvent;
+	*rmb = chr->CSO.inputEvent;
 }
 
 
 
 
 auto oldUpdate = (int(*)(int))NULL;
-auto oldReset = (void(*)(void))NULL;
-//auto oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char))NULL;
 auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
-auto oldFct = (void(__fastcall*)(int*))NULL;
+auto oldReset = (void(__stdcall*)(int*))NULL;
+auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
 
-void NewReset()
+//auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
+
+
+static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
+static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
+
+void __stdcall NewReset(int* dat)
 {
-	oldReset();
+	oldReset(dat);
+	chr1.CSO.guardGauge = 8000;
+	chr2.CSO.guardGauge = 8000;
 }
+/*
+void __declspec(naked) NewComputeGuardGauge()
+{
+	__asm MOV AL, freezeGuard;
+	__asm CMP AL, 0;
+	__asm JNZ skipCall;
+	__asm CALL [oldComputeGuardGauge];
+skipCall:
+	__asm RET;
+	//oldComputeGuardGauge();
+}
+*/
+/*
+void NewComputeGuardGaugeQuality()
+{
+
+}
+*/
 
 void NewUpdate(int arg)
 {
-	static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
-	static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
 	auto frameAdvantage1 = GetFrameAdvantage(chr1, chr2, p1BS);
 	auto frameAdvantage2 = GetFrameAdvantage(chr2, chr1, p2BS);
 
 	auto gap1 = GetGap(chr1, chr2, p1BS);
 	auto gap2 = GetGap(chr2, chr1, p2BS);
 	//ReversalOnBlock(chr2, p1BS, 36); // Why does it work the other way around?
-	
+
 	int remember;
 	//DisplaySpecialInput(&chr1, &remember);
 	//ReversalWakeup(chr2, 56);
-	
+
 	if (gap1) // Looks okay ?
 	{
 		printf("P1 Gap: %d \n", gap1);
@@ -226,20 +253,17 @@ void NewUpdate(int arg)
 	}
 	*/
 	//DisplaySpecialInput(chr1, &rmb);
-	
+
+	if (GS.exGuard == true)
+	{
+		chr2.CSO.u_ExGuardFlag = 10;
+	}
+
+	if (GS.guardFrozen == true)
+	{
+		chr2.CSO.guardGauge = 8000;
+	}
 	oldUpdate(arg);
-}
-
-/*
-void __fastcall NewResetCharacter(MeltyLib::CharacterObject* arg1, int trash, byte arg2, int arg3, char arg4)
-{
-	oldResetCharacter(arg1, trash, arg2, arg3, arg4);
-}
-*/
-
-void __fastcall NewFct(int* arg)
-{
-	oldFct(arg);
 }
 
 void __fastcall NewBattleSceneUpdate(int arg)
@@ -258,19 +282,36 @@ void __fastcall NewBattleSceneUpdate(int arg)
 		//can't tell if I actually performed a framestep or not
 	}
 
+	
+	if (GetAsyncKeyState(VK_F7) & 1)
+	{
+		GS.guardGaugeQuality = (GS.guardGaugeQuality + 0.5); //In [0;2]
+		if (GS.guardGaugeQuality > 2)
+			GS.guardGaugeQuality = 0;
+		printf("%d\n", GS.guardGaugeQuality);
+	}
+	
+
+	if (GetAsyncKeyState(VK_F8) & 1)
+	{
+		GS.exGuard = !GS.exGuard;
+	}
+
 	if (GetAsyncKeyState(VK_F9) & 1)
 	{
-		//NewResetCharacter();
-		int* addr = reinterpret_cast <int*>(0x774974);
-		NewFct(addr);
+		GS.guardFrozen = !GS.guardFrozen;
+		if (GS.guardFrozen)
+			puts("Guard frozen");
+		else
+			puts("Guard unfrozen");
 	}
 
 	if (GetAsyncKeyState(VK_F10) & 1)
 	{
-		NewReset();
+		NewReset(reinterpret_cast<int*>(0x774974));
 	}
 
-	if (!GS.frozen || GS.framestep == true)
+		if (!GS.frozen || GS.framestep == true)
 	{
 		oldBattleSceneUpdate(arg);
 	}
@@ -308,12 +349,13 @@ DWORD WINAPI HookThread(HMODULE hModule)
 	freopen_s(&f, "CONOUT$", "w", stdout);
 
 	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)NewUpdate);
-	oldBattleSceneUpdate = (void (__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
-	//oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunction(0x426838, (DWORD)NewResetCharacter);
-	
-	oldFct = (void(__fastcall*)(int*)) HookFunction(0x0, (DWORD)NewFct);
-	oldReset = (void(*)(void)) HookFunction(0x423460, (DWORD)NewReset); //MeltyLib::BATTLESCENE_
+	oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
+	oldReset = (void(__stdcall*)(int*)) HookFunction(0x42357D, (DWORD)NewReset); //0x42357D 0x433911
 
+	//oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunction(0x461948, (DWORD)NewComputeGuardGauge);
+	
+	//0x461928 MeltyLib::EXGUARDFLAG_COMPUTE
+	//oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunction(0x426838, (DWORD)NewResetCharacter);
 	//0x423460 MeltyLib::BATTLESCENE_INIT
 	//0x4265EC MeltyLib::BATTLESCENE_SUBMESSAGE_DISPLAY_RESET
 	return 0;
