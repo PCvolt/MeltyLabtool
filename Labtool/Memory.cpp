@@ -16,6 +16,7 @@ struct GameState
 	bool guardFrozen = false;
 	int guardGaugeQuality = 0;
 	bool exGuard = false;
+	bool reversalWakeup = false;
 };
 
 static GameState GS;
@@ -34,10 +35,38 @@ struct BlockingState
 	bool willReversal = false;
 };
 
-
 static BlockingState p1BS;
 static BlockingState p2BS;
 
+
+struct Position
+{
+	int x;
+	int y;
+
+	Position(int x, int y)
+	{
+		this->x = x;
+		this->y = y;
+	}
+};
+
+struct SavedPositions
+{
+	Position p1Left = Position(-65536, 0);
+	Position p2Left = Position(-55000, 0);
+
+	Position p1Center = Position(-3000, 0);
+	Position p2Center = Position(3000, 0);
+
+	Position p1Right = Position(55000, 0);
+	Position p2Right= Position(65536, 0);
+
+	Position p1Custom = Position(-16384, 0);
+	Position p2Custom = Position(16384, 0);
+};
+
+static SavedPositions savedPositions;
 
 void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 {
@@ -231,7 +260,10 @@ void NewUpdate(int arg)
 
 	int remember;
 	//DisplaySpecialInput(&chr1, &remember);
-	//ReversalWakeup(chr2, 56);
+	if (GS.reversalWakeup == true)
+	{
+		ReversalWakeup(chr2, 151);
+	}
 
 	if (gap1) // Looks okay ?
 	{
@@ -266,6 +298,15 @@ void NewUpdate(int arg)
 	oldUpdate(arg);
 }
 
+
+void ResetPositionsAt(Position p1Pos, Position p2Pos)
+{
+	chr1.CSO.xPosNext = p1Pos.x;
+	chr1.CSO.yPosNext = p1Pos.y;
+	chr2.CSO.xPosNext = p2Pos.x;
+	chr2.CSO.yPosNext = p2Pos.y;
+}
+
 void __fastcall NewBattleSceneUpdate(int arg)
 {
 	GS.framestep = false;
@@ -282,6 +323,49 @@ void __fastcall NewBattleSceneUpdate(int arg)
 		//can't tell if I actually performed a framestep or not
 	}
 
+	if (GetAsyncKeyState(0x31) & 1) //key "1"
+	{
+		switch (chr1.CSO.inputDirection)
+		{
+		case 0x4:
+			ResetPositionsAt(savedPositions.p1Left, savedPositions.p2Left);
+			break;
+		case 0x2:
+			ResetPositionsAt(savedPositions.p1Center, savedPositions.p2Center);
+			break;
+		case 0x6:
+			ResetPositionsAt(savedPositions.p1Right, savedPositions.p2Right);
+			break;
+		case 0x0:
+			ResetPositionsAt(savedPositions.p1Custom, savedPositions.p2Custom);
+			break;
+		default:
+			break;
+		}
+		
+		// Should regen guardquality, guardbar and meter
+	}
+
+	if (GetAsyncKeyState(0x32) & 1) //key "2"
+	{
+		savedPositions.p1Custom.x = chr1.CSO.xPos;
+		savedPositions.p1Custom.y = chr1.CSO.yPos;
+		savedPositions.p2Custom.x = chr2.CSO.xPos;
+		savedPositions.p2Custom.y = chr2.CSO.yPos;
+		puts("Custom positions saved");
+	}
+
+
+	/*
+	if (GetAsyncKeyState(VK_F6) & 1)
+	{
+		GS.reversalWakeup = !GS.reversalWakeup;
+		if (GS.reversalWakeup)
+			puts("C-Arc 22B");
+		else
+			puts("Nothing");
+	}
+	*/
 	
 	if (GetAsyncKeyState(VK_F7) & 1)
 	{
