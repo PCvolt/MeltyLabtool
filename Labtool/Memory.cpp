@@ -288,7 +288,7 @@ void NewUpdate(int arg)
 
 	if (GS.exGuard == true)
 	{
-		chr2.CSO.u_ExGuardFlag = 10;
+		chr2.CSO.ExGuardFlag = 10;
 	}
 
 	if (GS.guardFrozen == true)
@@ -325,18 +325,24 @@ void __fastcall NewBattleSceneUpdate(int arg)
 
 	if (GetAsyncKeyState(0x31) & 1) //key "1"
 	{
-		switch (chr1.CSO.inputDirection)
+		switch (chr1.CSO.inputDirectionRaw)
 		{
-		case 0x4:
+		case 4:
 			ResetPositionsAt(savedPositions.p1Left, savedPositions.p2Left);
 			break;
-		case 0x2:
+		case 1:
+			ResetPositionsAt(savedPositions.p2Left, savedPositions.p1Left);
+			break;
+		case 2:
 			ResetPositionsAt(savedPositions.p1Center, savedPositions.p2Center);
 			break;
-		case 0x6:
+		case 3:
+			ResetPositionsAt(savedPositions.p2Right, savedPositions.p1Right);
+			break;
+		case 6:
 			ResetPositionsAt(savedPositions.p1Right, savedPositions.p2Right);
 			break;
-		case 0x0:
+		case 0:
 			ResetPositionsAt(savedPositions.p1Custom, savedPositions.p2Custom);
 			break;
 		default:
