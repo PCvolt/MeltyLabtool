@@ -68,6 +68,9 @@ struct SavedPositions
 
 static SavedPositions savedPositions;
 
+static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
+static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
+
 void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 {
 	if (chr.CSO.wakeupFlag == 1)
@@ -211,6 +214,33 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 }
 
 
+void ResetGuard(MeltyLib::CharacterObject& chr)
+{
+	switch (chr.CSO.moon)
+	{
+	case 0:
+		chr.CSO.guardGauge = 8000;
+		break;
+	case 1:
+		chr.CSO.guardGauge = 7000;
+		break;
+	case 2:
+		chr.CSO.guardGauge = 10500;
+		break;
+	default:
+		break;
+	}
+
+	chr.CSO.timerGuardQualityRegen = 0;
+	chr.CSO.timerGuardQualityRegen = 0;
+	chr.CSO.guardGaugeQuality = 0;
+}
+
+void ResetGuards()
+{
+	ResetGuard(chr1);
+	ResetGuard(chr2);
+}
 
 
 auto oldUpdate = (int(*)(int))NULL;
@@ -221,14 +251,10 @@ auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
 //auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
 
 
-static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
-static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
-
 void __stdcall NewReset(int* dat)
 {
 	oldReset(dat);
-	chr1.CSO.guardGauge = 8000;
-	chr2.CSO.guardGauge = 8000;
+	ResetGuards();
 }
 /*
 void __declspec(naked) NewComputeGuardGauge()
@@ -240,12 +266,6 @@ void __declspec(naked) NewComputeGuardGauge()
 skipCall:
 	__asm RET;
 	//oldComputeGuardGauge();
-}
-*/
-/*
-void NewComputeGuardGaugeQuality()
-{
-
 }
 */
 
@@ -305,6 +325,8 @@ void ResetPositionsAt(Position p1Pos, Position p2Pos)
 	chr1.CSO.yPosNext = p1Pos.y;
 	chr2.CSO.xPosNext = p2Pos.x;
 	chr2.CSO.yPosNext = p2Pos.y;
+
+	ResetGuards();
 }
 
 void __fastcall NewBattleSceneUpdate(int arg)
