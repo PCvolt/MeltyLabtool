@@ -68,8 +68,10 @@ struct SavedPositions
 
 static SavedPositions savedPositions;
 
-static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
-static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
+//static MeltyLib::CharacterObject& chr1 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_1;
+//static MeltyLib::CharacterObject& chr2 = *(MeltyLib::CharacterObject*)MeltyLib::ADDR_CHARACTER_2;
+
+//static MeltyLib::Menu& trainingMenu
 
 void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 {
@@ -134,6 +136,7 @@ static bool IsBlocking(const MeltyLib::CharacterObject& chr)
 
 	return false;
 }
+// Use IsUnderAttack flag to compute frame advantage and gaps?
 
 static bool IsIdle(const MeltyLib::CharacterObject& chr)
 {
@@ -154,7 +157,7 @@ static bool IsIdle(const MeltyLib::CharacterObject& chr)
 
 std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, BlockingState& state)
 {
-	bool attacking = IsAttacking(chr1);
+	bool attacking = IsAttacking(MeltyLib::character1);
 	bool blocking = IsStunned(chr2);
 	bool idling1 = IsIdle(chr1);
 	bool idling2 = IsIdle(chr2);
@@ -238,8 +241,18 @@ void ResetGuard(MeltyLib::CharacterObject& chr)
 
 void ResetGuards()
 {
-	ResetGuard(chr1);
-	ResetGuard(chr2);
+	ResetGuard(MeltyLib::character1);
+	ResetGuard(MeltyLib::character2);
+}
+
+void ResetPositionsAt(Position p1Pos, Position p2Pos)
+{
+	MeltyLib::character1.CSO.xPosNext = p1Pos.x;
+	MeltyLib::character1.CSO.yPosNext = p1Pos.y;
+	MeltyLib::character2.CSO.xPosNext = p2Pos.x;
+	MeltyLib::character2.CSO.yPosNext = p2Pos.y;
+
+	ResetGuards();
 }
 
 
@@ -271,18 +284,23 @@ skipCall:
 
 void NewUpdate(int arg)
 {
-	auto frameAdvantage1 = GetFrameAdvantage(chr1, chr2, p1BS);
-	auto frameAdvantage2 = GetFrameAdvantage(chr2, chr1, p2BS);
+	int battleMode = *(int*)MeltyLib::ADDR_BATTLEMODE;
+	if (battleMode != MeltyLib::PRACTICE)
+	{
+		return;
+	}
+	auto frameAdvantage1 = GetFrameAdvantage(MeltyLib::character1, MeltyLib::character2, p1BS);
+	auto frameAdvantage2 = GetFrameAdvantage(MeltyLib::character2, MeltyLib::character1, p2BS);
 
-	auto gap1 = GetGap(chr1, chr2, p1BS);
-	auto gap2 = GetGap(chr2, chr1, p2BS);
+	auto gap1 = GetGap(MeltyLib::character1, MeltyLib::character2, p1BS);
+	auto gap2 = GetGap(MeltyLib::character2, MeltyLib::character1, p2BS);
 	//ReversalOnBlock(chr2, p1BS, 36); // Why does it work the other way around?
 
 	int remember;
 	//DisplaySpecialInput(&chr1, &remember);
 	if (GS.reversalWakeup == true)
 	{
-		ReversalWakeup(chr2, 151);
+		ReversalWakeup(MeltyLib::character2, 151);
 	}
 
 	if (gap1) // Looks okay ?
@@ -308,25 +326,14 @@ void NewUpdate(int arg)
 
 	if (GS.exGuard == true)
 	{
-		chr2.CSO.ExGuardFlag = 10;
+		MeltyLib::character2.CSO.ExGuardFlag = 10;
 	}
 
 	if (GS.guardFrozen == true)
 	{
-		chr2.CSO.guardGauge = 8000;
+		MeltyLib::character2.CSO.guardGauge = 8000;
 	}
 	oldUpdate(arg);
-}
-
-
-void ResetPositionsAt(Position p1Pos, Position p2Pos)
-{
-	chr1.CSO.xPosNext = p1Pos.x;
-	chr1.CSO.yPosNext = p1Pos.y;
-	chr2.CSO.xPosNext = p2Pos.x;
-	chr2.CSO.yPosNext = p2Pos.y;
-
-	ResetGuards();
 }
 
 void __fastcall NewBattleSceneUpdate(int arg)
@@ -347,7 +354,7 @@ void __fastcall NewBattleSceneUpdate(int arg)
 
 	if (GetAsyncKeyState(0x31) & 1) //key "1"
 	{
-		switch (chr1.CSO.inputDirectionRaw)
+		switch (MeltyLib::character1.CSO.inputDirectionRaw)
 		{
 		case 4:
 			ResetPositionsAt(savedPositions.p1Left, savedPositions.p2Left);
@@ -371,15 +378,15 @@ void __fastcall NewBattleSceneUpdate(int arg)
 			break;
 		}
 		
-		// Should regen guardquality, guardbar and meter
+		// Should regen meter as well
 	}
 
 	if (GetAsyncKeyState(0x32) & 1) //key "2"
 	{
-		savedPositions.p1Custom.x = chr1.CSO.xPos;
-		savedPositions.p1Custom.y = chr1.CSO.yPos;
-		savedPositions.p2Custom.x = chr2.CSO.xPos;
-		savedPositions.p2Custom.y = chr2.CSO.yPos;
+		savedPositions.p1Custom.x = MeltyLib::character1.CSO.xPos;
+		savedPositions.p1Custom.y = MeltyLib::character1.CSO.yPos;
+		savedPositions.p2Custom.x = MeltyLib::character2.CSO.xPos;
+		savedPositions.p2Custom.y = MeltyLib::character2.CSO.yPos;
 		puts("Custom positions saved");
 	}
 
@@ -460,7 +467,7 @@ DWORD WINAPI HookThread(HMODULE hModule)
 	AllocConsole();
 	freopen_s(&f, "CONOUT$", "w", stdout);
 
-	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_CALL_UPDATE_GAME, (DWORD)NewUpdate);
+	oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD)NewUpdate);
 	oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
 	oldReset = (void(__stdcall*)(int*)) HookFunction(0x42357D, (DWORD)NewReset); //0x42357D 0x433911
 
