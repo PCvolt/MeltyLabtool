@@ -19,14 +19,21 @@ struct Guard
     bool isAttacking = false;
     bool started = false;
     bool willReversal = false;
+
+    bool frozen = false;
+    bool exGuard = false;
+    float guardGaugeQuality = 0;
 };
 
-static Guard p1BS;
-static Guard p2BS;
+extern Guard p1Guard;
+extern Guard p2Guard;
 
 void MaxGuard(MeltyLib::CharacterObject& chr);
 void ResetGuard(MeltyLib::CharacterObject& chr);
 void ResetGuards();
 void ForceExGuard();
+void ToggleExGuard();
+void ToggleFreezeGuard();
+void IncrementGuardGaugeQuality();
 
 #endif //MELTYLABTOOL_GUARD_H

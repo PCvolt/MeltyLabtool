@@ -1,8 +1,12 @@
 //
 // Created by PC_volt on 26/04/2022.
 //
-
+#include <string>
+#include "stdio.h"
 #include "Guard.h"
+
+Guard p1Guard;
+Guard p2Guard;
 
 void MaxGuard(MeltyLib::CharacterObject& chr)
 {
@@ -41,4 +45,43 @@ void ForceExGuard()
 {
     MeltyLib::character1.CSO.ExGuardFlag = 10;
     MeltyLib::character2.CSO.ExGuardFlag = 10;
+}
+
+void ToggleMessage(bool toggle, const char* msgTrue, const char* msgFalse)
+{
+    if (toggle)
+    {
+        puts(msgTrue);
+    }
+    else
+    {
+        puts(msgFalse);
+    }
+}
+
+void ToggleExGuard()
+{
+    p1Guard.exGuard = !p1Guard.exGuard;
+    p2Guard.exGuard = !p2Guard.exGuard;
+
+    ToggleMessage(p2Guard.exGuard, "EX guard!", "Normal guard");
+}
+
+void ToggleFreezeGuard()
+{
+    p1Guard.frozen = !p1Guard.frozen;
+    p2Guard.frozen = !p2Guard.frozen;
+
+    ToggleMessage(p2Guard.exGuard, "Guard frozen", "Guard unfrozen");
+}
+
+void IncrementGuardGaugeQuality()
+{
+    p1Guard.guardGaugeQuality = (p1Guard.guardGaugeQuality + 0.5); //In [0;2]
+    if (p1Guard.guardGaugeQuality > 2)
+        p1Guard.guardGaugeQuality = 0;
+    p2Guard.guardGaugeQuality = (p2Guard.guardGaugeQuality + 0.5); //In [0;2]
+    if (p2Guard.guardGaugeQuality > 2)
+        p2Guard.guardGaugeQuality = 0;
+    printf("Gauge quality set at %d\n", p1Guard.guardGaugeQuality);
 }

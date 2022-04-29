@@ -36,5 +36,7 @@ struct SavedPositions
 
 static SavedPositions savedPositions;
 void ResetPositionsAt(Position p1Pos, Position p2Pos);
+void ResetPositions();
+void SavePositions();
 
 #endif //MELTYLABTOOL_POSITION_H

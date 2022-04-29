@@ -10,6 +10,15 @@
 #include "IsInAction.h"
 #include "Reversal.h"
 
+// Original Functions Prototypes
+auto oldUpdate = (int(*)(int))NULL;
+auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
+auto oldBattleSceneDraw = (void(*)(int))NULL;
+auto oldReset = (void(__stdcall*)(int*))NULL;
+auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
+auto oldTextureDraw = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
+//auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
+
 
 FILE* f = new FILE;
 
@@ -18,10 +27,6 @@ struct GameState
     bool frozen = false;
     bool framestep = false;
     int realTimer = 0;
-
-    bool guardFrozen = false;
-    int guardGaugeQuality = 0;
-    bool exGuard = false;
     bool reversalWakeup = false;
 };
 
@@ -37,12 +42,6 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
     *rmb = chr->CSO.inputEvent;
 }
 
-auto oldUpdate = (int(*)(int))NULL;
-auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
-auto oldReset = (void(__stdcall*)(int*))NULL;
-auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
-
-//auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
 
 void __stdcall NewReset(int* dat)
 {
@@ -69,11 +68,11 @@ void NewUpdateGame(int arg)
     {
         return;
     }
-    auto frameAdvantage1 = GetFrameAdvantage(MeltyLib::character1, MeltyLib::character2, p1BS);
-    auto frameAdvantage2 = GetFrameAdvantage(MeltyLib::character2, MeltyLib::character1, p2BS);
+    auto frameAdvantage1 = GetFrameAdvantage(MeltyLib::character1, MeltyLib::character2, p1Guard);
+    auto frameAdvantage2 = GetFrameAdvantage(MeltyLib::character2, MeltyLib::character1, p2Guard);
 
-    auto gap1 = GetGap(MeltyLib::character1, MeltyLib::character2, p1BS);
-    auto gap2 = GetGap(MeltyLib::character2, MeltyLib::character1, p2BS);
+    auto gap1 = GetGap(MeltyLib::character1, MeltyLib::character2, p1Guard);
+    auto gap2 = GetGap(MeltyLib::character2, MeltyLib::character1, p2Guard);
 
     if (gap1)
     {
@@ -95,83 +94,31 @@ void NewUpdateGame(int arg)
     }
     */
 
-    //ReversalOnBlock(chr2, p1BS, 36); // Why does it work the other way around?
+    //ReversalOnBlock(chr2, p1Guard, 36); // Why does it work the other way around?
     //DisplaySpecialInput(&chr1, &remember);
 
 
-    if (GS.reversalWakeup == true)
-    {
-        ReversalWakeup(MeltyLib::character2, 151);
-    }
-
-    if (GS.exGuard == true)
-    {
-        ForceExGuard();
-    }
-
-    if (GS.guardFrozen == true)
-    {
-        MaxGuard(MeltyLib::character1);
-        MaxGuard(MeltyLib::character2);
-    }
     oldUpdate(arg);
 }
 
 void __fastcall NewBattleSceneUpdate(int arg)
 {
     GS.framestep = false;
-    // FREEZE
-    if (GetAsyncKeyState(VK_F11) & 1)
-    {
-        GS.frozen = !GS.frozen;
-    }
 
-    // FRAMESTEP or not frozen
-    if (GetAsyncKeyState(VK_F12) & 1)
-    {
-        GS.framestep = true;
-        //can't tell if I actually performed a framestep or not
-    }
-
+    // RESET POSITIONS
     if (GetAsyncKeyState(0x31) & 1) //key "1"
     {
-        switch (MeltyLib::character1.CSO.inputDirectionRaw)
-        {
-            case 4:
-                ResetPositionsAt(savedPositions.p1Left, savedPositions.p2Left);
-                break;
-            case 1:
-                ResetPositionsAt(savedPositions.p2Left, savedPositions.p1Left);
-                break;
-            case 2:
-                ResetPositionsAt(savedPositions.p1Center, savedPositions.p2Center);
-                break;
-            case 3:
-                ResetPositionsAt(savedPositions.p2Right, savedPositions.p1Right);
-                break;
-            case 6:
-                ResetPositionsAt(savedPositions.p1Right, savedPositions.p2Right);
-                break;
-            case 0:
-                ResetPositionsAt(savedPositions.p1Custom, savedPositions.p2Custom);
-                break;
-            default:
-                break;
-        }
-
+        ResetPositions();
         // Should regen meter as well
     }
 
+    // SAVE POSITIONS
     if (GetAsyncKeyState(0x32) & 1) //key "2"
     {
-        savedPositions.p1Custom.x = MeltyLib::character1.CSO.xPos;
-        savedPositions.p1Custom.y = MeltyLib::character1.CSO.yPos;
-        savedPositions.p2Custom.x = MeltyLib::character2.CSO.xPos;
-        savedPositions.p2Custom.y = MeltyLib::character2.CSO.yPos;
-        puts("Custom positions saved");
+        SavePositions();
     }
 
-
+    /* Toggles */
     /*
     if (GetAsyncKeyState(VK_F6) & 1)
     {
@@ -185,43 +132,65 @@ void __fastcall NewBattleSceneUpdate(int arg)
 
     if (GetAsyncKeyState(VK_F7) & 1)
     {
-        GS.guardGaugeQuality = (GS.guardGaugeQuality + 0.5); //In [0;2]
-        if (GS.guardGaugeQuality > 2)
-            GS.guardGaugeQuality = 0;
-        printf("%d\n", GS.guardGaugeQuality);
+        IncrementGuardGaugeQuality();
     }
-
 
     if (GetAsyncKeyState(VK_F8) & 1)
     {
-        GS.exGuard = !GS.exGuard;
+        ToggleExGuard();
     }
 
     if (GetAsyncKeyState(VK_F9) & 1)
     {
-        GS.guardFrozen = !GS.guardFrozen;
-        if (GS.guardFrozen)
-            puts("Guard frozen");
-        else
-            puts("Guard unfrozen");
+        ToggleFreezeGuard();
+        printf("%d\n", p2Guard.frozen);
     }
 
     if (GetAsyncKeyState(VK_F10) & 1)
     {
-        NewReset(reinterpret_cast<int*>(0x774974));
+        NewReset(reinterpret_cast<int*>(0x774974)); // not necessary anymore
+    }
+
+    // FREEZE
+    if (GetAsyncKeyState(VK_F11) & 1)
+    {
+        GS.frozen = !GS.frozen;
+    }
+
+    // FRAMESTEP
+    if (GetAsyncKeyState(VK_F12) & 1)
+    {
+        GS.framestep = true;
+    }
+
+    //
+    if (GS.reversalWakeup == true)
+    {
+        ReversalWakeup(MeltyLib::character2, 151);
+    }
+
+    if (p2Guard.exGuard == true)
+    {
+        ForceExGuard();
+    }
+
+    if (p2Guard.frozen == true)
+    {
+        MaxGuard(MeltyLib::character1);
+        MaxGuard(MeltyLib::character2);
     }
 
     if (!GS.frozen || GS.framestep == true)
     {
         oldBattleSceneUpdate(arg);
+        // freeze drawing function as well?
     }
 }
 
 
-
 // Hooks the function in the stead of the original function.
 // We call the original function in the hooked function so to continue normal behaviour.
-inline DWORD HookFunction(DWORD addr, DWORD target)
+inline DWORD HookFunctionCall(DWORD addr, DWORD target)
 {
     DWORD oldProtect;
 
@@ -240,7 +209,7 @@ inline DWORD HookFunction(DWORD addr, DWORD target)
 inline DWORD HookAfterFunction(DWORD addr, DWORD target)
 {
     DWORD oldProtect;
-
+    // ...
 }
 
 DWORD WINAPI HookThread(HMODULE hModule)
@@ -248,14 +217,14 @@ DWORD WINAPI HookThread(HMODULE hModule)
     AllocConsole();
     freopen_s(&f, "CONOUT$", "w", stdout);
 
-    oldUpdate = (int(*)(int)) HookFunction(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD)NewUpdateGame);
-    oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunction(0x4235d1, (DWORD)NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
-    oldReset = (void(__stdcall*)(int*)) HookFunction(0x42357D, (DWORD)NewReset); //0x42357D 0x433911
+    oldUpdate = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD) NewUpdateGame);
+    oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATE_BATTLESCENE_CALL, (DWORD) NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
+    oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
 
-    //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunction(0x461948, (DWORD)NewComputeGuardGauge);
+    //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunctionCall(0x461948, (DWORD)NewComputeGuardGauge);
 
     //0x461928 MeltyLib::EXGUARDFLAG_COMPUTE
-    //oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunction(0x426838, (DWORD)NewResetCharacter);
+    //oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunctionCall(0x426838, (DWORD)NewResetCharacter);
     //0x423460 MeltyLib::BATTLESCENE_INIT
     //0x4265EC MeltyLib::BATTLESCENE_SUBMESSAGE_DISPLAY_RESET
     return 0;
