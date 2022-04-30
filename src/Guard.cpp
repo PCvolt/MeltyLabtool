@@ -1,8 +1,7 @@
 //
 // Created by PC_volt on 26/04/2022.
 //
-#include <string>
-#include "stdio.h"
+#include <stdio.h>
 #include "Guard.h"
 
 Guard p1Guard;

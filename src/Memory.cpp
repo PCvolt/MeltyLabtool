@@ -118,7 +118,20 @@ void ManageToggles()
 
     if (GetAsyncKeyState(VK_F6) & 1)
     {
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERSHADOWS_CALL, MeltyLib::ADDR_DRAW_CHARACTERSHADOWS);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_EFFECTS1_CALL, MeltyLib::ADDR_DRAW_EFFECTS1);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_EFFECTS2_CALL, MeltyLib::ADDR_DRAW_EFFECTS2);
         ToggleNOPAt(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, MeltyLib::ADDR_DRAW_BATTLEBACKGROUND);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, MeltyLib::ADDR_DRAW_HUDTEXT);
+
+        //ToggleNOPAt(MeltyLib::ADDR_DRAW_BATTLEBHUD_CALL, MeltyLib::ADDR_DRAW_BATTLEBHUD); //this crashes, have to NOP functions inside
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_RESOURCESHUD_CALL, MeltyLib::ADDR_DRAW_RESOURCESHUD);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERRESOURCESTEXT_CALL, MeltyLib::ADDR_DRAW_CHARACTERRESOURCESTEXT);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERRESOURCESTEXT1_CALL, MeltyLib::ADDR_DRAW_CHARACTERRESOURCESTEXT);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERRESOURCES_CALL, MeltyLib::ADDR_DRAW_TEXTURE);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERRESOURCES1_CALL, MeltyLib::ADDR_DRAW_TEXTURE);
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_CHARACTERRESOURCES2_CALL, MeltyLib::ADDR_DRAW_TEXTURE);
+
     }
 
     /*
@@ -145,7 +158,6 @@ void ManageToggles()
     if (GetAsyncKeyState(VK_F9) & 1)
     {
         ToggleFreezeGuard();
-        printf("%d\n", p2Guard.frozen);
     }
 
     if (GetAsyncKeyState(VK_F10) & 1)

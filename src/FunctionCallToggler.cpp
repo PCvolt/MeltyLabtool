@@ -2,9 +2,9 @@
 // Created by PC_volt on 29/04/2022.
 //
 
-#include "FunctionCallToggler.h"
-#include <stdio.h>
 #include <windows.h>
+#include <stdio.h>
+#include "FunctionCallToggler.h"
 
 #define ASM_NOP 0x90
 #define ASM_CALL 0xE8
@@ -12,8 +12,7 @@
 
 bool isCallNOPed(int callerAddress)
 {
-    char callInstruction = *((char *)callerAddress);
-        if (callInstruction == ASM_NOP)
+    if (*((byte *)callerAddress) == ASM_NOP)
     {
         return true;
     }
@@ -29,16 +28,14 @@ void ToggleNOPAt(int callerAddress, int calleeAddress)
 
     if (isCallNOPed(callerAddress))
     {
-        printf("fixing back\n");
-        *((char *)callerAddress) = ASM_CALL; //write the CALL instruction
-        *((DWORD *)(callerAddress + 1)) = callerAddress - (calleeAddress + 5); //write the difference between the caller and callee addresses
+        *((byte *)callerAddress) = ASM_CALL; //write the CALL instruction
+        *((DWORD *)(callerAddress + 1)) = calleeAddress - (callerAddress + 5); //write the difference between the caller and callee addresses
     }
     else
     {
-        //NOP the 5 bytes
         for (int i = 0; i < 5; ++i)
         {
-            *((char *)callerAddress + i) = ASM_NOP;
+            *((byte *)callerAddress + i) = ASM_NOP; //NOP the 5 bytes
         }
     }
 
