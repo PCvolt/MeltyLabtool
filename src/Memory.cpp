@@ -9,6 +9,7 @@
 #include "Framedata.h"
 #include "IsInAction.h"
 #include "Reversal.h"
+#include "FunctionCallToggler.h"
 
 // Original Functions Prototypes
 auto oldUpdate = (int(*)(int))NULL;
@@ -16,9 +17,8 @@ auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
 auto oldBattleSceneDraw = (void(*)(int))NULL;
 auto oldReset = (void(__stdcall*)(int*))NULL;
 auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
-auto oldTextureDraw = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
+auto oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
 //auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
-
 
 FILE* f = new FILE;
 
@@ -101,10 +101,8 @@ void NewUpdateGame(int arg)
     oldUpdate(arg);
 }
 
-void __fastcall NewBattleSceneUpdate(int arg)
+void ManageToggles()
 {
-    GS.framestep = false;
-
     // RESET POSITIONS
     if (GetAsyncKeyState(0x31) & 1) //key "1"
     {
@@ -118,17 +116,21 @@ void __fastcall NewBattleSceneUpdate(int arg)
         SavePositions();
     }
 
-    /* Toggles */
-    /*
     if (GetAsyncKeyState(VK_F6) & 1)
     {
-        GS.reversalWakeup = !GS.reversalWakeup;
-        if (GS.reversalWakeup)
-            puts("C-Arc 22B");
-        else
-            puts("Nothing");
+        ToggleNOPAt(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, MeltyLib::ADDR_DRAW_BATTLEBACKGROUND);
     }
-    */
+
+    /*
+ if (GetAsyncKeyState(VK_F6) & 1)
+ {
+     GS.reversalWakeup = !GS.reversalWakeup;
+     if (GS.reversalWakeup)
+         puts("C-Arc 22B");
+     else
+         puts("Nothing");
+ }
+ */
 
     if (GetAsyncKeyState(VK_F7) & 1)
     {
@@ -162,8 +164,13 @@ void __fastcall NewBattleSceneUpdate(int arg)
     {
         GS.framestep = true;
     }
+}
 
-    //
+void __fastcall NewBattleSceneUpdate(int arg)
+{
+    GS.framestep = false;
+    ManageToggles();
+
     if (GS.reversalWakeup == true)
     {
         ReversalWakeup(MeltyLib::character2, 151);
@@ -186,7 +193,6 @@ void __fastcall NewBattleSceneUpdate(int arg)
         // freeze drawing function as well?
     }
 }
-
 
 // Hooks the function in the stead of the original function.
 // We call the original function in the hooked function so to continue normal behaviour.
@@ -221,8 +227,19 @@ DWORD WINAPI HookThread(HMODULE hModule)
     oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATE_BATTLESCENE_CALL, (DWORD) NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
     oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
 
-    //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunctionCall(0x461948, (DWORD)NewComputeGuardGauge);
 
+    //oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(0x4da9ab, (DWORD) NewDrawInfoBackground);
+
+    /*
+    oldDrawCharacters = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_CHARACTERS_CALL, (DWORD) NewDrawCharacters);
+    //oldDrawShadows
+    //oldDrawEffects1
+    //oldDrawEffects2
+    oldDrawHudText = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) NewDrawHudText);
+    //oldDrawBattleHud = (void(*)(int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBHUD_CALL, (DWORD) NewDrawBattleHud);
+    oldDrawBattleBackground = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, (DWORD) NewDrawBattleBackground);
+*/
+    //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunctionCall(0x461948, (DWORD)NewComputeGuardGauge);
     //0x461928 MeltyLib::EXGUARDFLAG_COMPUTE
     //oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunctionCall(0x426838, (DWORD)NewResetCharacter);
     //0x423460 MeltyLib::BATTLESCENE_INIT

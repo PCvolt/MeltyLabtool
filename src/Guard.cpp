@@ -83,5 +83,8 @@ void IncrementGuardGaugeQuality()
     p2Guard.guardGaugeQuality = (p2Guard.guardGaugeQuality + 0.5); //In [0;2]
     if (p2Guard.guardGaugeQuality > 2)
         p2Guard.guardGaugeQuality = 0;
-    printf("Gauge quality set at %d\n", p1Guard.guardGaugeQuality);
+
+    MeltyLib::character1.CSO.guardGaugeQuality = p1Guard.guardGaugeQuality;
+    MeltyLib::character2.CSO.guardGaugeQuality = p2Guard.guardGaugeQuality;
+    printf("Gauge quality set at %.1f\n", p1Guard.guardGaugeQuality);
 }
