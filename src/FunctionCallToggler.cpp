@@ -19,6 +19,20 @@ bool isCallNOPed(int callerAddress)
     return false;
 }
 
+void SetCALLToNOP(int callerAddress)
+{
+    for (int i = 0; i < 5; ++i)
+    {
+        *((byte *)callerAddress + i) = ASM_NOP; //NOP the 5 bytes
+    }
+}
+
+void SetNOPToCALL(int callerAddress, int calleeAddress)
+{
+    *((byte *)callerAddress) = ASM_CALL; //write the CALL instruction
+    *((DWORD *)(callerAddress + 1)) = calleeAddress - (callerAddress + 5); //write the difference between the caller and callee addresses
+}
+
 //Give an address and it NOPs it
 //If the address given already points towards a NOP, then CALL <address> to restore the regular behaviour
 void ToggleNOPAt(int callerAddress, int calleeAddress)
@@ -28,15 +42,11 @@ void ToggleNOPAt(int callerAddress, int calleeAddress)
 
     if (isCallNOPed(callerAddress))
     {
-        *((byte *)callerAddress) = ASM_CALL; //write the CALL instruction
-        *((DWORD *)(callerAddress + 1)) = calleeAddress - (callerAddress + 5); //write the difference between the caller and callee addresses
+        SetNOPToCALL(callerAddress, calleeAddress);
     }
     else
     {
-        for (int i = 0; i < 5; ++i)
-        {
-            *((byte *)callerAddress + i) = ASM_NOP; //NOP the 5 bytes
-        }
+        SetCALLToNOP(callerAddress);
     }
 
     if (!VirtualProtect((void *)callerAddress, 5, oldProtect, &oldProtect)) {  }

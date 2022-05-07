@@ -4,6 +4,7 @@
 #include "Memory.h"
 
 #include "../MeltyLib/src/MeltyLib.h"
+#include "Menu.h"
 #include "Guard.h"
 #include "Position.h"
 #include "Framedata.h"
@@ -18,7 +19,7 @@ auto oldBattleSceneDraw = (void(*)(int))NULL;
 auto oldReset = (void(__stdcall*)(int*))NULL;
 auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
 auto oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
-//auto oldComputeGuardGaugeQuality = (void(__fastcall*)(int*))NULL; //characterSubObj
+auto oldCreateTrainingMenu = (int(*)(void))NULL;
 
 FILE* f = new FILE;
 
@@ -29,7 +30,6 @@ struct GameState
     int realTimer = 0;
     bool reversalWakeup = false;
 };
-
 static GameState GS;
 
 
@@ -60,6 +60,13 @@ skipCall:
 	//oldComputeGuardGauge();
 }
 */
+
+int NewCreateTrainingMenu()
+{
+    int res = oldCreateTrainingMenu();
+    EditTrainingMenuElementsOrder();
+    return res;
+}
 
 void NewUpdateGame(int arg)
 {
@@ -224,12 +231,6 @@ inline DWORD HookFunctionCall(DWORD addr, DWORD target)
     return old;
 }
 
-inline DWORD HookAfterFunction(DWORD addr, DWORD target)
-{
-    DWORD oldProtect;
-    // ...
-}
-
 DWORD WINAPI HookThread(HMODULE hModule)
 {
     AllocConsole();
@@ -238,21 +239,9 @@ DWORD WINAPI HookThread(HMODULE hModule)
     oldUpdate = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD) NewUpdateGame);
     oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATE_BATTLESCENE_CALL, (DWORD) NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
     oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
+    oldCreateTrainingMenu = (int(*)(void)) HookFunctionCall(MeltyLib::ADDR_CREATE_TRAININGMENU_CALL, (DWORD) NewCreateTrainingMenu);
 
-
-    //oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(0x4da9ab, (DWORD) NewDrawInfoBackground);
-
-    /*
-    oldDrawCharacters = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_CHARACTERS_CALL, (DWORD) NewDrawCharacters);
-    //oldDrawShadows
-    //oldDrawEffects1
-    //oldDrawEffects2
-    oldDrawHudText = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) NewDrawHudText);
-    //oldDrawBattleHud = (void(*)(int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBHUD_CALL, (DWORD) NewDrawBattleHud);
-    oldDrawBattleBackground = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, (DWORD) NewDrawBattleBackground);
-*/
     //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunctionCall(0x461948, (DWORD)NewComputeGuardGauge);
-    //0x461928 MeltyLib::EXGUARDFLAG_COMPUTE
     //oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunctionCall(0x426838, (DWORD)NewResetCharacter);
     //0x423460 MeltyLib::BATTLESCENE_INIT
     //0x4265EC MeltyLib::BATTLESCENE_SUBMESSAGE_DISPLAY_RESET
