@@ -11,7 +11,7 @@ bool IsAttacking(const MeltyLib::CharacterObject& chr);
 bool IsStunned(const MeltyLib::CharacterObject& chr);
 bool IsHit(const MeltyLib::CharacterObject& chr);
 bool IsBlocking(const MeltyLib::CharacterObject& chr);
-bool IsIdle(const MeltyLib::CharacterObject& chr);
+bool IsNotInCommittalAction(int playerIndex);
 
 
 #endif //MELTYLABTOOL_ISINACTION_H

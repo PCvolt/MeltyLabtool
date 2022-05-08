@@ -8,8 +8,8 @@
 #include <optional>
 #include "Guard.h"
 #include "../MeltyLib/src/MeltyLib.h"
-
-std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& state);
+void CheckCharactersCurrentAction(const MeltyLib::CharacterObject& chr, Guard& state);
+std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& p1State, Guard& p2State);
 std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& state);
 
 #endif //MELTYLABTOOL_FRAMEDATA_H

@@ -12,10 +12,10 @@ struct Guard
     int lastFrame;
     Action lastAction;
     int hitTimer = 0;
-    int timer = 0;
+    int time = 0;
     int gapCounter = 0;
     bool isIdling = false;
-    bool isBlocking = false;
+    bool isStunned = false;
     bool isAttacking = false;
     bool started = false;
     bool willReversal = false;

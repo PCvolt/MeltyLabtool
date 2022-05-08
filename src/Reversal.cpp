@@ -15,12 +15,12 @@ void ReversalWakeup(MeltyLib::CharacterObject& chr, short attackId)
 
 void ReversalOnBlock(MeltyLib::CharacterObject& chr, Guard& state, short attackId)
 {
-    if (!state.isBlocking && state.willReversal)
+    if (!state.isStunned && state.willReversal)
     {
         chr.CSO.inputEvent = attackId;
         state.willReversal = false;
     }
-    if (state.isBlocking)
+    if (state.isStunned)
     {
         state.willReversal = true;
     }

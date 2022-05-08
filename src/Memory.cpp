@@ -75,8 +75,11 @@ void NewUpdateGame(int arg)
     {
         return;
     }
-    auto frameAdvantage1 = GetFrameAdvantage(MeltyLib::character1, MeltyLib::character2, p1Guard);
-    auto frameAdvantage2 = GetFrameAdvantage(MeltyLib::character2, MeltyLib::character1, p2Guard);
+
+    CheckCharactersCurrentAction(MeltyLib::character1, p1Guard);
+    CheckCharactersCurrentAction(MeltyLib::character2, p2Guard);
+
+    auto frameAdvantage = GetFrameAdvantage(MeltyLib::character1, MeltyLib::character2, p1Guard, p2Guard);
 
     auto gap1 = GetGap(MeltyLib::character1, MeltyLib::character2, p1Guard);
     auto gap2 = GetGap(MeltyLib::character2, MeltyLib::character1, p2Guard);
@@ -90,16 +93,10 @@ void NewUpdateGame(int arg)
         printf("P2 Gap: %d \n", gap2);
     }
 
-    /*
-    if (frameAdvantage1)
+    if (frameAdvantage)
     {
-        printf("P1 is %dF \n", frameAdvantage1);
+        printf("P1 is %dF \n\n", frameAdvantage);
     }
-    else if (frameAdvantage2)
-    {
-        printf("P2 is %dF \n", frameAdvantage2);
-    }
-    */
 
     //ReversalOnBlock(chr2, p1Guard, 36); // Why does it work the other way around?
     //DisplaySpecialInput(&chr1, &remember);
@@ -115,6 +112,7 @@ void ManageToggles()
     {
         ResetPositions();
         // Should regen meter as well
+        // Reset Rebeat proratio
     }
 
     // SAVE POSITIONS

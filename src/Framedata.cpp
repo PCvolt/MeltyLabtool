@@ -5,38 +5,40 @@
 #include "Framedata.h"
 #include "IsInAction.h"
 
-std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& state)
+void CheckCharactersCurrentAction(const MeltyLib::CharacterObject& chr, Guard& state)
 {
-    bool attacking = IsAttacking(MeltyLib::character1);
-    bool blocking = IsStunned(chr2);
-    bool idling1 = IsIdle(chr1);
-    bool idling2 = IsIdle(chr2);
+    state.isAttacking = IsAttacking(chr);
+    state.isStunned = IsStunned(chr);
+    state.isIdling = IsNotInCommittalAction(chr.CSO.player);
+}
+
+std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& p1State, Guard& p2State)
+{
     std::optional<int> frameAdvantage;
 
-    if (!idling1 && !idling2 && !state.started)
+    if ((p1State.isStunned || p2State.isStunned) && (!p1State.isIdling && !p2State.isIdling))
     {
-        state.started = true;
-        state.timer = 0;
+        p1State.time = 0;
+        p1State.started = true;
     }
 
-    if (state.started)
+    if (p1State.started)
     {
-        if (idling1 && idling2)
+        if (!p1State.isStunned && !p2State.isStunned && p1State.isIdling && p2State.isIdling)
         {
-            state.started = false;
-            frameAdvantage = state.timer;
+            p1State.started = false;
+            frameAdvantage = p1State.time;
         }
-        if (!idling1)
+
+        if (p1State.isIdling && (p2State.isStunned || !p2State.isIdling))
         {
-            --state.timer;
+            ++p1State.time;
         }
-        if (!idling2)
+        if (p2State.isIdling && (p1State.isStunned || !p1State.isIdling))
         {
-            ++state.timer;
+            --p1State.time;
         }
     }
-    state.isAttacking = attacking;
-    state.isBlocking = blocking;
 
     return frameAdvantage;
 }
@@ -46,13 +48,13 @@ std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib:
 {
     std::optional<int> gap;
 
-    if (state.isBlocking)
+    if (state.isStunned)
     {
         if (state.gapCounter > 0 && state.gapCounter <= 30)
             gap = state.gapCounter;
         state.gapCounter = 0;
     }
-    if (!state.isBlocking)
+    if (!state.isStunned)
         state.gapCounter++;
     return gap;
 }

@@ -14,7 +14,7 @@ bool IsAttacking(const MeltyLib::CharacterObject& chr)
 
 bool IsStunned(const MeltyLib::CharacterObject& chr)
 {
-    if (chr.CSO.hitstunOnGround > 0)
+    if (chr.CSO.hitstunOnGround != 0)
         return true;
 
     return false;
@@ -45,21 +45,21 @@ bool IsBlocking(const MeltyLib::CharacterObject& chr)
 
     return false;
 }
-// Use IsUnderAttack flag to compute frame advantage and gaps?
 
-bool IsIdle(const MeltyLib::CharacterObject& chr)
+bool IsNotInCommittalAction(int playerIndex)
 {
-    if (!IsStunned(chr))
+    if (playerIndex == 0)
     {
-        if (((chr.CSO.action == Action::ACTION_IDLE ||
-              (chr.CSO.action >= Action::ACTION_WALK && chr.CSO.action <= Action::ACTION_TURNAROUND) ||
-              chr.CSO.action == Action::ACTION_LANDING ||
-              (chr.CSO.action >= Action::ACTION_j9 && chr.CSO.action <= Action::ACTION_dj7))
-             || chr.CSO.action == Action::ACTION_STANDBLOCK
-             || chr.CSO.action == Action::ACTION_CROUCHBLOCK
-             || chr.CSO.action == Action::ACTION_AIRBLOCK))
-            return true;
-
+        if (*(int*) MeltyLib::ADDR_P1_COMMITACTIONTIME > 0) {
+            return false;
+        }
+        return true;
     }
-    return false;
+    if (playerIndex == 1)
+    {
+        if (*(int*) MeltyLib::ADDR_P2_COMMITACTIONTIME > 0) {
+            return false;
+        }
+        return true;
+    }
 }
