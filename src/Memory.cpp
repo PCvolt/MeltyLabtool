@@ -1,8 +1,8 @@
 #include <Windows.h>
 #include <typeinfo>
 #include <optional>
-#include "Memory.h"
 
+#include "Memory.h"
 #include "../MeltyLib/src/MeltyLib.h"
 #include "Menu.h"
 #include "Guard.h"
@@ -19,6 +19,7 @@ auto oldBattleSceneDraw = (void(*)(int))NULL;
 auto oldReset = (void(__stdcall*)(int*))NULL;
 auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
 auto oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
+auto oldDrawHUDText = (void(*)(void))NULL;
 auto oldCreateTrainingMenu = (int(*)(void))NULL;
 
 FILE* f = new FILE;
@@ -32,6 +33,51 @@ struct GameState
 };
 static GameState GS;
 
+/*
+ * Draw Frame Advantage and Gaps
+ * Draw Attack Info
+ * Draw Boxes
+ * */
+// void DrawTexture(undefined4 param_1,undefined4 texture,int xPos,int yPos,int yScale,int xOffsetSheet,int yOffsetSheet,undefined4 param_8,undefined4 param_9,
+// int hexColor, undefined4 param_11,undefined4 u_alpha)
+
+LPDIRECT3DVERTEXBUFFER9 v_buffer;
+#define CUSTOMFVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
+void NewDrawHUDText()
+{
+    oldDrawHUDText();
+    MeltyLib::DrawUtils::Vertex vertices[] =
+            {
+
+                    {100.f, 200.f, 0.f, 1.f, 0xFFFFFFFF},
+                    {500.f, 200.f, 0.f, 1.f, 0xFFFFFFFF},
+                    {500.f, 400.f, 0.f, 1.f, 0xFFFFFFFF},
+                    {100.f, 400.f, 0.f, 1.f, 0xFFFFFFFF}
+
+                    /*
+                    {100, 200, 0, 1, 0xFFFFFFFF},
+                    {500, 200, 0, 1, 0xFFFFFFFF},
+                    {500, 400, 0, 1, 0xFFFFFFFF},
+                    {100, 400, 0, 1, 0xFFFFFFFF}
+                     */
+            };
+
+     MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, vertices, sizeof(vertices));
+
+
+
+    MeltyLib::pd3dDev->CreateVertexBuffer(3*sizeof(MeltyLib::DrawUtils::Vertex),0,CUSTOMFVF,D3DPOOL_MANAGED,&v_buffer,NULL);
+
+    VOID* pVoid;    // the void* we were talking about
+    v_buffer->Lock(0, 0, (void**)&pVoid, 0);    // locks v_buffer, the buffer we made earlier
+    memcpy(pVoid, vertices, sizeof(vertices));
+    v_buffer->Unlock();
+
+    MeltyLib::pd3dDev->SetFVF(CUSTOMFVF);
+    MeltyLib::pd3dDev->SetStreamSource(0, v_buffer, 0, sizeof(MeltyLib::DrawUtils::Vertex));
+    MeltyLib::pd3dDev->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+    v_buffer->Release();    // close and release the vertex buffer
+}
 
 void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
 {
@@ -41,7 +87,6 @@ void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
     }
     *rmb = chr->CSO.inputEvent;
 }
-
 
 void __stdcall NewReset(int* dat)
 {
@@ -70,6 +115,7 @@ int NewCreateTrainingMenu()
 
 void NewUpdateGame(int arg)
 {
+    //render_frame();
     int battleMode = *(int*)MeltyLib::ADDR_BATTLEMODE;
     if (battleMode != MeltyLib::PRACTICE_MODE)
     {
@@ -239,9 +285,7 @@ DWORD WINAPI HookThread(HMODULE hModule)
     oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
     oldCreateTrainingMenu = (int(*)(void)) HookFunctionCall(MeltyLib::ADDR_CREATE_TRAININGMENU_CALL, (DWORD) NewCreateTrainingMenu);
 
-    //oldComputeGuardGauge = (void(__fastcall*)(void)) HookFunctionCall(0x461948, (DWORD)NewComputeGuardGauge);
-    //oldResetCharacter = (void(__fastcall*)(MeltyLib::CharacterObject*, int trash, byte, int, char)) HookFunctionCall(0x426838, (DWORD)NewResetCharacter);
-    //0x423460 MeltyLib::BATTLESCENE_INIT
-    //0x4265EC MeltyLib::BATTLESCENE_SUBMESSAGE_DISPLAY_RESET
+    //oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, (DWORD) DrawFrameAdvantageAndGap);
+    oldDrawHUDText = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) NewDrawHUDText);
     return 0;
 }

@@ -18,7 +18,7 @@ void AddMenuElement(MeltyLib::MenuSet *trainingMenuSet, MeltyLib::ElementType ty
     trainingMenuSet->pElementsListEnd = trainingMenuSet->pElementsListEnd + 1; //increments the size of the list. pElementsListEnd doesn't need to be incremented for this to take effect.
 }
 
-void CreateMenu()
+void CreateCustomMenu()
 {
     // I guess the Normal MenuElement has the same name as the Menu
 }

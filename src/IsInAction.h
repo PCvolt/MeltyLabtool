@@ -7,7 +7,6 @@
 
 #include "../MeltyLib/src/MeltyLib.h"
 
-bool IsAttacking(const MeltyLib::CharacterObject& chr);
 bool IsStunned(const MeltyLib::CharacterObject& chr);
 bool IsHit(const MeltyLib::CharacterObject& chr);
 bool IsBlocking(const MeltyLib::CharacterObject& chr);

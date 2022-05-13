@@ -3,15 +3,6 @@
 //
 #include "IsInAction.h"
 
-bool IsAttacking(const MeltyLib::CharacterObject& chr)
-{
-    //get a convenient variable other than listing all the attacks
-    if ((chr.CSO.action >= Action::ACTION_5A && chr.CSO.action <= Action::ACTION_jC) || (chr.CSO.action >= Action::ACTION_AIRDASH && chr.CSO.action < Action::HITSTUN_LIGHT_LEANBACK))
-        return true;
-
-    return false;
-}
-
 bool IsStunned(const MeltyLib::CharacterObject& chr)
 {
     if (chr.CSO.hitstunOnGround != 0)

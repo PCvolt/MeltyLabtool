@@ -7,7 +7,6 @@
 
 void CheckCharactersCurrentAction(const MeltyLib::CharacterObject& chr, Guard& state)
 {
-    state.isAttacking = IsAttacking(chr);
     state.isStunned = IsStunned(chr);
     state.isIdling = IsNotInCommittalAction(chr.CSO.player);
 }
