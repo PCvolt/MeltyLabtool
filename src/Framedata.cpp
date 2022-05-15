@@ -42,7 +42,7 @@ std::optional<int> GetFrameAdvantage(const MeltyLib::CharacterObject& chr1, cons
     return frameAdvantage;
 }
 // Find call of function that is updated only if the game is not paused
-
+// isThrown not taken into account!
 std::optional<int> GetGap(const MeltyLib::CharacterObject& chr1, const MeltyLib::CharacterObject& chr2, Guard& state)
 {
     std::optional<int> gap;

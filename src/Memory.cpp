@@ -18,8 +18,8 @@ auto oldBattleSceneUpdate = (void(__fastcall*)(int))NULL;
 auto oldBattleSceneDraw = (void(*)(int))NULL;
 auto oldReset = (void(__stdcall*)(int*))NULL;
 auto oldComputeGuardGauge = (void(__fastcall*)(void))NULL;
-auto oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
-auto oldDrawHUDText = (void(*)(void))NULL;
+auto oldDrawInfoBackground = (void(*)(int,int,int,int,int,int,int,int,int,int,int,int))NULL; // must guess
+auto oldDrawHUDText = (void(__stdcall*)(void))NULL;
 auto oldCreateTrainingMenu = (int(*)(void))NULL;
 
 FILE* f = new FILE;
@@ -41,42 +41,29 @@ static GameState GS;
 // void DrawTexture(undefined4 param_1,undefined4 texture,int xPos,int yPos,int yScale,int xOffsetSheet,int yOffsetSheet,undefined4 param_8,undefined4 param_9,
 // int hexColor, undefined4 param_11,undefined4 u_alpha)
 
-LPDIRECT3DVERTEXBUFFER9 v_buffer;
-#define CUSTOMFVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
-void NewDrawHUDText()
+struct point_vertex{
+    float x, y, z, rhw;  // The transformed(screen space) position for the vertex.
+    DWORD colour;        // The vertex colour.
+};
+
+static point_vertex fan2[]={ //A coloured fan
+
+        {325,300,1,1,0xFFFFFFFF},
+        {250,175,1,1,0xFFFF0000},{300,165,1,1,0xFF7F7F00},{325,155,1,1,0xFF00FF00},
+        {375,165,1,1,0xFF007F7F},{400,185,1,1,0xFF0000FF}
+};
+
+void __stdcall NewDrawHUDText()
 {
+    MeltyLib::pd3dDev->BeginScene();
+    MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 4,fan2, sizeof(point_vertex));//VertexStreamZeroStride
+    MeltyLib::pd3dDev->EndScene();
     oldDrawHUDText();
-    MeltyLib::DrawUtils::Vertex vertices[] =
-            {
+}
 
-                    {100.f, 200.f, 0.f, 1.f, 0xFFFFFFFF},
-                    {500.f, 200.f, 0.f, 1.f, 0xFFFFFFFF},
-                    {500.f, 400.f, 0.f, 1.f, 0xFFFFFFFF},
-                    {100.f, 400.f, 0.f, 1.f, 0xFFFFFFFF}
-
-                    /*
-                    {100, 200, 0, 1, 0xFFFFFFFF},
-                    {500, 200, 0, 1, 0xFFFFFFFF},
-                    {500, 400, 0, 1, 0xFFFFFFFF},
-                    {100, 400, 0, 1, 0xFFFFFFFF}
-                     */
-            };
-
-     MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, vertices, sizeof(vertices));
-
-
-
-    MeltyLib::pd3dDev->CreateVertexBuffer(3*sizeof(MeltyLib::DrawUtils::Vertex),0,CUSTOMFVF,D3DPOOL_MANAGED,&v_buffer,NULL);
-
-    VOID* pVoid;    // the void* we were talking about
-    v_buffer->Lock(0, 0, (void**)&pVoid, 0);    // locks v_buffer, the buffer we made earlier
-    memcpy(pVoid, vertices, sizeof(vertices));
-    v_buffer->Unlock();
-
-    MeltyLib::pd3dDev->SetFVF(CUSTOMFVF);
-    MeltyLib::pd3dDev->SetStreamSource(0, v_buffer, 0, sizeof(MeltyLib::DrawUtils::Vertex));
-    MeltyLib::pd3dDev->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
-    v_buffer->Release();    // close and release the vertex buffer
+void DrawSomething(int arg1,int arg2,int arg3,int arg4,int arg5,int arg6,int arg7,int arg8,int arg9,int arg10,int arg11,int arg12)
+{
+    oldDrawInfoBackground(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
 }
 
 void DisplaySpecialInput(const MeltyLib::CharacterObject* chr, int* rmb)
@@ -257,6 +244,47 @@ void __fastcall NewBattleSceneUpdate(int arg)
     }
 }
 
+typedef HRESULT(__stdcall* EndSceneFn)(IDirect3DDevice9*);
+typedef HRESULT(__stdcall* ResetFn)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
+
+ResetFn Original_Reset = NULL;
+EndSceneFn Original_EndScene = NULL;
+int __stdcall Hooked_EndScene(IDirect3DDevice9* pDevice) {
+    static bool init = true;
+
+    NewDrawHUDText();
+    Original_EndScene(pDevice);
+    return 0x8a0e14;
+}
+
+int __stdcall Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* params) {
+    static bool init = true;
+
+    HRESULT hr = Original_Reset(pDevice, params);
+    if (hr != S_OK)
+        return hr;
+
+    return S_OK;
+}
+
+void **CreateDummyVTable(void **oldVTable)
+{
+    void ** newVTable = (void **)malloc(175 * sizeof(void*));
+    memcpy(newVTable, oldVTable, 175 * sizeof(void*)),
+    newVTable[42] = (void*)Hooked_EndScene;
+    newVTable[16] = (void*)Hooked_Reset;
+    return newVTable;
+}
+
+void HookDX(IDirect3DDevice9 *device)
+{
+    void **oldVTable = *(void***)device;
+    void **newVTable = CreateDummyVTable(oldVTable);
+    (((void**)device)[0]) = newVTable;
+    Original_Reset = (ResetFn)oldVTable[16];
+    Original_EndScene = (EndSceneFn)oldVTable[42];
+}
+
 // Hooks the function in the stead of the original function.
 // We call the original function in the hooked function so to continue normal behaviour.
 inline DWORD HookFunctionCall(DWORD addr, DWORD target)
@@ -280,12 +308,15 @@ DWORD WINAPI HookThread(HMODULE hModule)
     AllocConsole();
     freopen_s(&f, "CONOUT$", "w", stdout);
 
+    //HookDX(MeltyLib::pd3dDev);
+
     oldUpdate = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD) NewUpdateGame);
     oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATE_BATTLESCENE_CALL, (DWORD) NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
     oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
     oldCreateTrainingMenu = (int(*)(void)) HookFunctionCall(MeltyLib::ADDR_CREATE_TRAININGMENU_CALL, (DWORD) NewCreateTrainingMenu);
 
-    //oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(MeltyLib::ADDR_DRAW_BATTLEBACKGROUND_CALL, (DWORD) DrawFrameAdvantageAndGap);
-    oldDrawHUDText = (void(*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) NewDrawHUDText);
+    //oldDrawInfoBackground = (void(*)(int,int,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(0x4da9ab, (DWORD) DrawSomething);
+    oldDrawHUDText = (void(__stdcall*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) NewDrawHUDText);
+    //oldDrawHUDText = (int(__stdcall*)(void)) HookFunctionCall(0x40e499, (DWORD) NewDrawHUDText);
     return 0;
 }
