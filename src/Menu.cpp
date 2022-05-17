@@ -28,7 +28,7 @@ void EditTrainingMenuElementsOrder()
     MeltyLib::Menu *&trainingMenu = *reinterpret_cast<MeltyLib::Menu **>(MeltyLib::PTR_TRAININGMENU);
     MeltyLib::MenuSet *trainingMenuSet = *trainingMenu->ppMenuSet;
 
-    AddMenuElement(trainingMenuSet, MeltyLib::SPACE_ELEMENT, "", "");
+    //AddMenuElement(trainingMenuSet, MeltyLib::SPACE_ELEMENT, "", ""); //crashes sometimes
     AddMenuElement(trainingMenuSet, MeltyLib::NORMAL_ELEMENT, "LABTOOL", "LABTOOL");
     //AddMenuElement(trainingMenuSet, MeltyLib::SELECT_ELEMENT, "SELECT ELEMENT", "SELECT_ELEMENT"); //crashes
 }
