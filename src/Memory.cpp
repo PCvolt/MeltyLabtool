@@ -4,6 +4,7 @@
 
 #include "Memory.h"
 #include "../MeltyLib/src/MeltyLib.h"
+#include "DrawGraphics.h"
 #include "Menu.h"
 #include "Guard.h"
 #include "Position.h"
@@ -11,6 +12,7 @@
 #include "IsInAction.h"
 #include "Reversal.h"
 #include "FunctionCallToggler.h"
+
 
 // Original Functions Prototypes
 auto oldUpdate = (int(*)(int))NULL;
@@ -220,143 +222,6 @@ void __fastcall NewBattleSceneUpdate(int arg)
 }
 
 
-
-/*
- * Draw Frame Advantage and Gaps
- * Draw Attack Info
- * Draw Boxes
- * */
-
-struct point_vertex{
-    float x, y, z, rhw;  // The transformed(screen space) position for the vertex.
-    DWORD colour;        // The vertex colour.
-};
-
-static point_vertex fan2[]={ //A coloured fan
-
-        {325,300,1,1,0xFFFFFFFF},
-        {250,175,1,1,0xFFFF0000},{300,165,1,1,0xFF7F7F00},{325,155,1,1,0xFF00FF00},
-        {375,165,1,1,0xFF007F7F},{400,185,1,1,0xFF0000FF}
-};
-
-void DrawBoxes(MeltyLib::CharacterObject chr)
-{
-    if (chr.CSO.texture == 0)
-    {
-        return;
-    }
-
-    if (chr.CSO.texture->hurtboxList != 0)
-    {
-        for (int i = 0; i < chr.CSO.texture->hurtboxCount; ++i)
-        {
-            float x1 = chr.CSO.texture->hurtboxList[i].x1;
-            float y1 = chr.CSO.texture->hurtboxList[i].y1;
-            float x2 = chr.CSO.texture->hurtboxList[i].x2;
-            float y2 = chr.CSO.texture->hurtboxList[i].y2;
-
-            // First hurtbox is in actuality a collision box
-            unsigned long color = 0x8800FF00;
-            if (i == 0)
-            {
-                color = 0x88FFFFFF; //color to grey
-            }
-            //color to green, CH state in turquoise
-
-            MeltyLib::DrawUtils::Vertex box[] = {
-                    {x1, y1, 1, 1, color, 1, 1},
-                    {x1, y2, 1, 1, color, 1, 1},
-                    {x2, y2, 1, 1, color, 1, 1},
-                    {x2, y1, 1, 1, color, 1, 1}
-            };
-
-            MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2,box, sizeof(MeltyLib::DrawUtils::Vertex));
-        }
-    }
-
-    if (chr.CSO.texture->hitboxList != 0)
-    {
-        //printf("%d\n", chr.CSO.texture->hitboxCount);
-        for (int i = 0; i < chr.CSO.texture->hitboxCount; ++i)
-        {
-
-            float x1 = chr.CSO.texture->hitboxList[i].x1;
-            float y1 = chr.CSO.texture->hitboxList[i].y1;
-            float x2 = chr.CSO.texture->hitboxList[i].x2;
-            float y2 = chr.CSO.texture->hitboxList[i].y2;
-
-            unsigned long color = 0x88FF0000;
-            MeltyLib::DrawUtils::Vertex box[] = {
-                    {x1, y1, 1, 1, color, 1, 1},
-                    {x1, y2, 1, 1, color, 1, 1},
-                    {x2, y2, 1, 1, color, 1, 1},
-                    {x2, y1, 1, 1, color, 1, 1}
-            };
-
-            MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2,box, sizeof(MeltyLib::DrawUtils::Vertex));
-        }
-    }
-
-}
-
-void DrawMyGraphics()
-{
-    //MeltyLib::pd3dDev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 4,fan2, sizeof(point_vertex));//VertexStreamZeroStride
-
-    if (MeltyLib::character1.isInitialized == 1)
-        DrawBoxes(MeltyLib::character1);
-    if (MeltyLib::character2.isInitialized == 1)
-        DrawBoxes(MeltyLib::character2);
-    if (MeltyLib::character3.isInitialized == 1)
-        DrawBoxes(MeltyLib::character3);
-    if (MeltyLib::character4.isInitialized == 1)
-        DrawBoxes(MeltyLib::character4);
-
-}
-
-
-typedef HRESULT(__stdcall* EndSceneFn)(IDirect3DDevice9*);
-typedef HRESULT(__stdcall* ResetFn)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
-
-ResetFn Original_Reset = NULL;
-EndSceneFn Original_EndScene = NULL;
-int __stdcall Hooked_EndScene(IDirect3DDevice9* pDevice) {
-    static bool init = true;
-
-    DrawMyGraphics();
-
-    Original_EndScene(pDevice);
-    return 0x8a0e14; //This is not even checked. Soku wink wink.
-}
-
-int __stdcall Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* params) {
-    static bool init = true;
-
-    HRESULT hr = Original_Reset(pDevice, params);
-    if (hr != S_OK)
-        return hr;
-
-    return S_OK;
-}
-
-void **CreateDummyVTable(void **oldVTable)
-{
-    void ** newVTable = (void **)malloc(175 * sizeof(void*));
-    memcpy(newVTable, oldVTable, 175 * sizeof(void*)),
-    newVTable[42] = (void*)Hooked_EndScene;
-    newVTable[16] = (void*)Hooked_Reset;
-    return newVTable;
-}
-
-void HookDX(IDirect3DDevice9 *device)
-{
-    void **oldVTable = *(void***)device;
-    void **newVTable = CreateDummyVTable(oldVTable);
-    (((void**)device)[0]) = newVTable;
-    Original_Reset = (ResetFn)oldVTable[16];
-    Original_EndScene = (EndSceneFn)oldVTable[42];
-}
-
 // Hooks the function in the stead of the original function.
 // We call the original function in the hooked function so to continue normal behaviour.
 inline DWORD HookFunctionCall(DWORD addr, DWORD target)
@@ -380,13 +245,14 @@ DWORD WINAPI HookThread(HMODULE hModule)
     AllocConsole();
     freopen_s(&f, "CONOUT$", "w", stdout);
 
+    // TODO: Crashes when changing characters
     HookDX(MeltyLib::pd3dDev);
-/*
+
     oldUpdate = (int(*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATEGAME_CALL, (DWORD) NewUpdateGame);
     oldBattleSceneUpdate = (void(__fastcall*)(int)) HookFunctionCall(MeltyLib::ADDR_UPDATE_BATTLESCENE_CALL, (DWORD) NewBattleSceneUpdate); //MeltyLib::BATTLESCENE_UPDATE
     oldReset = (void(__stdcall*)(int*)) HookFunctionCall(0x42357D, (DWORD) NewReset); //0x42357D 0x433911
     oldCreateTrainingMenu = (int(*)(void)) HookFunctionCall(MeltyLib::ADDR_CREATE_TRAININGMENU_CALL, (DWORD) NewCreateTrainingMenu);
-*/
+
     //oldDrawInfoBackground = (void(*)(int,int*,int,int,int,int,int,int,int,int,int,int)) HookFunctionCall(0x4da97d, (DWORD) DrawSomething);
     //oldDrawHUDText = (void(__stdcall*)(void)) HookFunctionCall(MeltyLib::ADDR_DRAW_HUDTEXT_CALL, (DWORD) DrawBoxes);
     return 0;

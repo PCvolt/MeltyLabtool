@@ -16,7 +16,7 @@ add_library(Labtool SHARED
         src/Position.cpp src/Position.h
         src/Framedata.cpp src/Framedata.h
         src/FunctionCallToggler.cpp src/FunctionCallToggler.h
-        src/Menu.cpp src/Menu.h)
+        src/Menu.cpp src/Menu.h src/DrawGraphics.cpp src/DrawGraphics.h)
 
 add_executable(MeltyLabtool src/DLLInjector.cpp)
 target_link_libraries(Labtool MeltyLib)
